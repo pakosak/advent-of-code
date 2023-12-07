@@ -28,26 +28,16 @@ impl HandType {
             .collect();
         counts.sort_by(|a, b| b.cmp(a));
 
-        let unique: HashSet<Card> = HashSet::from_iter(hand.iter().cloned());
-        match (unique.len(), counts.first().unwrap_or(&0), joker_count) {
-            (1, 0, 5) => HandType::FiveOfAKind,
-            (1, 5, 0) => HandType::FiveOfAKind,
-            (2, 4, 1) => HandType::FiveOfAKind,
-            (2, 3, 2) => HandType::FiveOfAKind,
-            (2, 2, 3) => HandType::FiveOfAKind,
-            (2, 1, 4) => HandType::FiveOfAKind,
-            (2, 4, 0) => HandType::FourOfAKind,
-            (3, 3, 1) => HandType::FourOfAKind,
-            (3, 2, 2) => HandType::FourOfAKind,
-            (3, 1, 3) => HandType::FourOfAKind,
-            (2, 3, 0) => HandType::FullHouse,
-            (3, 2, 1) => HandType::FullHouse,
-            (3, 3, 0) => HandType::ThreeOfAKind,
-            (4, 2, 1) => HandType::ThreeOfAKind,
-            (4, 1, 2) => HandType::ThreeOfAKind,
-            (3, 2, 0) => HandType::TwoPairs,
-            (4, 2, 0) => HandType::OnePair,
-            (5, 1, 1) => HandType::OnePair,
+        let highest_occ = counts.first().unwrap_or(&0) + joker_count as u32;
+        let unique_count = (counts.len() as u32).max(1);
+
+        match (unique_count, highest_occ) {
+            (1, 5) => HandType::FiveOfAKind,
+            (2, 4) => HandType::FourOfAKind,
+            (2, 3) => HandType::FullHouse,
+            (3, 3) => HandType::ThreeOfAKind,
+            (3, 2) => HandType::TwoPairs,
+            (4, 2) => HandType::OnePair,
             _ => HandType::HighCard,
         }
     }

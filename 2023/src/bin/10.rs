@@ -5,6 +5,7 @@ use std::io::{self, BufRead, BufReader};
 
 type Grid = Vec<Vec<char>>;
 type Position = (usize, usize);
+type Path = HashSet<Position>;
 
 #[derive(Debug, Copy, Clone)]
 enum Dir {
@@ -91,36 +92,99 @@ fn first_step(grid: &Grid, start: Position) -> Command {
     panic!("no first step found");
 }
 
-fn compute_path(grid: &Grid) -> HashSet<Position> {
-    let start = find_start(&grid);
+fn compute_path(grid: &mut Grid) -> Path {
+    let start = find_start(grid);
 
-    let mut current = first_step(&grid, start);
+    let mut current = first_step(grid, start);
     let mut path = HashSet::new();
     path.insert(current.pos);
     while grid[current.pos.1][current.pos.0] != 'S' {
-        println!("{} {:?}", grid[current.pos.1][current.pos.0], current);
-        current = next_command(current, &grid);
+        current = next_command(current, grid);
         path.insert(current.pos);
     }
+    grid[start.1][start.0] = 'J'; // dirty hack
     path
 }
 
-fn first(grid: Grid) -> usize {
-    compute_path(&grid).len() / 2
+fn first(mut grid: Grid) -> usize {
+    compute_path(&mut grid).len() / 2
 }
 
-fn second(grid: Grid) -> u32 {
-    let path = compute_path(&grid);
+fn is_truly_inside(pos: &Position, grid: &Grid, path: &Path) -> bool {
+    let mut ok = false;
+    let mut prev_path_start = None;
+    let mut prev_path_end = None;
+    for col in 0..=pos.0 {
+        match (prev_path_start, prev_path_end) {
+            (Some('L'), Some('7')) | (Some('F'), Some('J')) | (Some('|'), Some('|')) => {
+                ok = !ok;
+                prev_path_end = None;
+                prev_path_start = None;
+            }
+            (Some('L'), Some('J')) | (Some('F'), Some('7')) => {
+                prev_path_end = None;
+                prev_path_start = None;
+            }
+            _ => {}
+        }
+
+        if path.contains(&(col, pos.1)) {
+            match grid[pos.1][col] {
+                '|' | 'F' | 'L' => {
+                    prev_path_start = Some(grid[pos.1][col]);
+                }
+                _ => {}
+            }
+            match grid[pos.1][col] {
+                '|' | '7' | 'J' => {
+                    prev_path_end = Some(grid[pos.1][col]);
+                }
+                _ => {}
+            }
+        }
+    }
+    ok
+}
+
+fn show_map(grid: &Grid, path: &Path, points: &[Vec<bool>]) {
+    for (y, row) in points.iter().enumerate() {
+        println!(
+            "{}",
+            row.iter()
+                .enumerate()
+                .map(|(x, point)| if *point {
+                    '.'
+                } else if path.contains(&(x, y)) {
+                    grid[y][x]
+                } else {
+                    ' '
+                })
+                .collect::<String>()
+        );
+    }
+}
+
+fn second(mut grid: Grid) -> usize {
+    let path = compute_path(&mut grid);
 
     let points: Vec<Vec<bool>> = grid
         .iter()
         .enumerate()
-        .map(|(y, row)| (0..row.len()).map(|x| !path.contains(&(x, y))).collect())
+        .map(|(y, row)| {
+            let grid = &grid;
+            let path = &path;
+            (0..row.len())
+                .map(|x| !path.contains(&(x, y)) && is_truly_inside(&(x, y), grid, path))
+                .collect()
+        })
         .collect();
 
-    for row in &points {}
+    show_map(&grid, &path, &points);
 
-    1
+    points
+        .iter()
+        .map(|row| row.iter().filter(|b| **b).count())
+        .sum()
 }
 
 fn main() -> Result<()> {

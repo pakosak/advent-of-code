@@ -1,22 +1,19 @@
 use anyhow::Result;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::fs;
 
-fn part_one(reader: BufReader<File>) -> u32 {
-    let lines = reader.lines();
+fn part_one(file_contents: String) -> usize {
     1
 }
 
-fn part_two(reader: BufReader<File>) -> u32 {
+fn part_two(file_contents: String) -> usize {
     1
 }
 
 fn main() -> Result<()> {
-    let file = File::open("input/1.txt")?;
-    let reader = io::BufReader::new(file);
+    let file_contents = fs::read_to_string("input/16.txt")?;
 
-    println!("{}", part_one(reader));
-    // println!("{}", part_two(reader));
+    println!("{}", part_one(file_contents));
+    // println!("{}", part_two(grid));
 
     Ok(())
 }

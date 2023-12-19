@@ -1,5 +1,4 @@
 use anyhow::Result;
-use itertools::Itertools;
 use std::{collections::HashSet, fs};
 
 type Grid = Vec<Vec<bool>>;
@@ -67,18 +66,18 @@ fn compute_inner_area(grid: &Grid) -> usize {
     grid[0].len() * grid.len() - visited.len()
 }
 
-fn prepare_grid(commands: &[(char, i32)]) -> (Grid, (usize, usize)) {
+fn prepare_grid(commands: &[(char, usize)]) -> (Grid, (usize, usize)) {
     let intermediate_positions: Vec<(i32, i32)> = commands
         .iter()
         .scan((0_i32, 0_i32), |acc, (dir, steps)| {
             if *dir == 'R' {
-                acc.0 += *steps;
+                acc.0 += *steps as i32;
             } else if *dir == 'L' {
-                acc.0 -= *steps;
+                acc.0 -= *steps as i32;
             } else if *dir == 'D' {
-                acc.1 += *steps;
+                acc.1 += *steps as i32;
             } else if *dir == 'U' {
-                acc.1 -= *steps;
+                acc.1 -= *steps as i32;
             }
             Some(*acc)
         })
@@ -103,7 +102,7 @@ fn prepare_grid(commands: &[(char, i32)]) -> (Grid, (usize, usize)) {
     (grid, current)
 }
 
-fn compute_trench_area(commands: Vec<(char, i32)>) -> usize {
+fn compute_trench_area_naive(commands: Vec<(char, usize)>) -> usize {
     let (mut grid, mut current) = prepare_grid(&commands);
     for (dir, steps) in commands {
         for _ in 0..steps {
@@ -111,27 +110,48 @@ fn compute_trench_area(commands: Vec<(char, i32)>) -> usize {
             grid[current.1][current.0] = true;
         }
     }
-    let pretty = grid
-        .iter()
-        .map(|row| {
-            row.iter()
-                .map(|b| if *b { '#' } else { '.' })
-                .collect::<String>()
-        })
-        .collect::<Vec<String>>()
-        .join("\n");
-    println!("{}", pretty);
     compute_inner_area(&grid)
 }
 
+fn extract_polygon_points(commands: Vec<(char, usize)>) -> Vec<(isize, isize)> {
+    let mut points = commands
+        .iter()
+        .scan((0_isize, 0_isize), |acc, (dir, steps)| {
+            match dir {
+                'R' => acc.0 += *steps as isize,
+                'L' => acc.0 -= *steps as isize,
+                'D' => acc.1 += *steps as isize,
+                'U' => acc.1 -= *steps as isize,
+                _ => panic!("invalid direction"),
+            }
+            Some(*acc)
+        })
+        .collect();
+    points.insert(0, (0, 0));
+    points
+}
+
+fn compute_trench_area_math(commands: Vec<(char, usize)>) -> usize {
+    let path_len: usize = commands.iter().map(|(_, steps)| *steps).sum();
+
+    let points = extract_polygon_points(commands);
+
+    (points.windows(2).fold(0, |acc, window| {
+        acc + (window[0].1 + window[1].1) * (window[0].0 - window[1].0)
+    }) / 2)
+        .unsigned_abs() as usize
+        + path_len / 2
+        + 1
+}
+
 fn part_one(file_contents: String) -> usize {
-    compute_trench_area(
+    compute_trench_area_naive(
         file_contents
             .lines()
             .map(|line| {
                 let mut spl = line.split_whitespace();
                 let dir = spl.next().unwrap().chars().next().unwrap();
-                let steps = spl.next().unwrap().parse::<i32>().unwrap();
+                let steps = spl.next().unwrap().parse::<usize>().unwrap();
                 (dir, steps)
             })
             .collect(),
@@ -139,13 +159,13 @@ fn part_one(file_contents: String) -> usize {
 }
 
 fn part_two(file_contents: String) -> usize {
-    compute_trench_area(
+    compute_trench_area_math(
         file_contents
             .lines()
             .map(|line| {
                 let hex = line.split_once('#').unwrap().1.trim_end_matches(')');
                 let dir = num_char_to_dir(hex.chars().last().unwrap());
-                let steps = i64::from_str_radix(&hex[..6], 16).unwrap() as i32;
+                let steps = i64::from_str_radix(&hex[..5], 16).unwrap() as usize;
                 (dir, steps)
             })
             .collect(),
@@ -155,8 +175,8 @@ fn part_two(file_contents: String) -> usize {
 fn main() -> Result<()> {
     let file_contents = fs::read_to_string("input/18.txt")?;
 
-    println!("{}", part_one(file_contents));
-    // println!("{}", part_two(file_contents));
+    // println!("{}", part_one(file_contents));
+    println!("{}", part_two(file_contents));
 
     Ok(())
 }
